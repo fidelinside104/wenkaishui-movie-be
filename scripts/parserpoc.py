@@ -9,8 +9,8 @@ Assumptions:
 """
 
 import json
-import os
 import re
+from pathlib import Path
 from typing import List, Dict
 
 from bs4 import BeautifulSoup
@@ -72,9 +72,8 @@ def extract_movie_blocks(html: str) -> List[Dict[str, object]]:
 
 
 def main() -> None:
-    # Default to FULL_PAGE_DEBUG.html in the same folder as this script.
-    here = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(here, "FULL_PAGE_DEBUG.html")
+    # Default to the temp folder at the repository root.
+    html_path = Path(__file__).resolve().parents[1] / "temp" / "FULL_PAGE_DEBUG.html"
 
     with open(html_path, "r", encoding="utf-8") as f:
         html = f.read()

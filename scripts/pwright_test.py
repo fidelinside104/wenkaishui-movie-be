@@ -7,10 +7,9 @@ This script:
 """
 
 from dotenv import load_dotenv
-import os
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
-import time
 
 # Load .env file automatically
 load_dotenv()
@@ -18,11 +17,13 @@ load_dotenv()
 # The URL we want to open
 URL = "https://www.atmovies.com.tw/showtime/t07707/a07/"
 
-# The name of the output file
-OUTPUT_FILE = "theater_showtime.txt"
+ROOT_DIR = Path(__file__).resolve().parent.parent
+DEBUG_DIR = ROOT_DIR / "temp"
+DEBUG_FILE = DEBUG_DIR / "FULL_PAGE_DEBUG.html"
 
 
 def main():
+    DEBUG_DIR.mkdir(parents=True, exist_ok=True)
     # Start Playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
@@ -40,9 +41,9 @@ def main():
 
         # Save full HTML
         full_html = page.content()
-        with open("FULL_PAGE_DEBUG.html", "w", encoding="utf-8") as f:
+        with DEBUG_FILE.open("w", encoding="utf-8") as f:
             f.write(full_html)
-        print("Saved full page HTML to FULL_PAGE_DEBUG.html")
+        print(f"Saved full page HTML to {DEBUG_FILE}")
         
         # Close the browser
         browser.close()

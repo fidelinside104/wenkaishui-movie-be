@@ -139,6 +139,7 @@ celerybeat.pid
 .envrc
 .venv
 logs/
+temp/
 env/
 venv/
 ENV/
