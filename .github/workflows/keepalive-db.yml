@@ -1,0 +1,29 @@
+name: Keepalive Supabase DBs
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run keepalive
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_URL_MO: ${{ secrets.SUPABASE_URL_MO }}
+          SUPABASE_SECRET_KEY_MO: ${{ secrets.SUPABASE_SECRET_KEY_MO }}
+        run: python scripts/keepalive.py
