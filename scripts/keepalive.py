@@ -1,10 +1,12 @@
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
 from supabase import create_client
 
 
 # check whether env variables exist
+load_dotenv(override=False)  # Load local env vars without overriding existing values.
 
 def _require_env(name: str) -> str:
     value = os.getenv(name)
