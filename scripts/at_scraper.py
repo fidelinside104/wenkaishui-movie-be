@@ -6,6 +6,7 @@ This script:
 4. Saves the content into a text file
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,6 +29,15 @@ SELECTOR = ".theaterShowtimeBlock"
 TIMEZONE = ZoneInfo("Asia/Taipei")
 GOTO_TIMEOUT_MS = 8000
 SELECTOR_TIMEOUT_MS = 8000
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = str(os.getenv(name, "")).strip().lower()
+    if value in {"1", "true", "yes", "y"}:
+        return True
+    if value in {"0", "false", "no", "n"}:
+        return False
+    return default
 
 
 def scrape_job(page, url, cinema, run_date):
@@ -54,16 +64,18 @@ def scrape_job(page, url, cinema, run_date):
     print(f"Saved full page HTML to {debug_file}")
 
 
-def main():
+def main(jobs=None, headless=None):
     DEBUG_DIR.mkdir(parents=True, exist_ok=True)
     run_date = datetime.now(TIMEZONE).strftime("%Y-%m-%d")
+    jobs = JOBS if jobs is None else jobs
+    headless = _env_bool("HEADLESS", False) if headless is None else headless
 
     # Start Playwright
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
 
-        for job in JOBS:
+        for job in jobs:
             scrape_job(page, job["url"], job["cinema"], run_date)
         
         # Close the browser
