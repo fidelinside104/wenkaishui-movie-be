@@ -1,0 +1,31 @@
+name: Atmovies E2E Runner
+
+on:
+  schedule:
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps
+
+      - name: Run at_runner
+        env:
+          HEADLESS: "1"
+          SUPABASE_URL_MO: ${{ secrets.SUPABASE_URL_MO }}
+          SUPABASE_SECRET_KEY_MO: ${{ secrets.SUPABASE_SECRET_KEY_MO }}
+        run: python scripts/at_runner.py
