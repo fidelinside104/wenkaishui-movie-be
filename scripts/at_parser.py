@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 TIME_RE = re.compile(r"\b\d{1,2}[：:]\d{2}\b")
 FPG_FILE_RE = re.compile(r"^FPG_(\d{4}-\d{2}-\d{2})_(.+)\.html$")
 TIMEZONE = ZoneInfo("Asia/Taipei")
+LENGTH_RE = re.compile(r"片長：(\d+)分")
 
 
 def normalize_time(time_str: str) -> str:
@@ -55,7 +56,24 @@ def extract_movie_blocks(html: str) -> List[Dict[str, object]]:
         if not title:
             continue
 
-        # 2) Find screening times within the same block.
+        # 2) Parse movie length from the block (片長：NNN分).
+        movie_length = None
+        for li in block.find_all("li"):
+            text = li.get_text(strip=True)
+            length_match = LENGTH_RE.search(text)
+            if length_match:
+                movie_length = int(length_match.group(1))
+                break
+
+        # 3) Parse movie version labels inside the block.
+        versions = []
+        for li in block.find_all("li", class_="filmVersion"):
+            version_text = li.get_text(strip=True)
+            if version_text:
+                versions.append(version_text)
+        movie_version = ";".join(versions) if versions else None
+
+        # 4) Find screening times within the same block.
         # We scan all <li> tags inside the block and pick out strings that look like times.
         times = []
         for li in block.find_all("li"):
@@ -71,7 +89,14 @@ def extract_movie_blocks(html: str) -> List[Dict[str, object]]:
                 seen.add(t)
                 unique_times.append(t)
 
-        movies.append({"title": title, "times": unique_times})
+        movies.append(
+            {
+                "title": title,
+                "times": unique_times,
+                "movie_length": movie_length,
+                "movie_version": movie_version,
+            }
+        )
 
     return movies
 
@@ -105,6 +130,8 @@ def main() -> None:
                         "cinema_name": cinema_name,
                         "movie_name": movie["title"],
                         "screening_time": time,
+                        "movie_length": movie["movie_length"],
+                        "movie_version": movie["movie_version"],
                     }
                 )
 
