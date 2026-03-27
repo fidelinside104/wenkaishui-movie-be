@@ -22,7 +22,8 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 TIMEZONE = ZoneInfo("Asia/Taipei")
-TABLE_NAME = "screenings_mini"
+TABLE_NAME_MINI = "screenings_mini"
+TABLE_NAME_HISTORY = "screenings"
 ALL_ROWS_SENTINEL = "00000000-0000-0000-0000-000000000000"
 
 # Ensure required env vars exist.
@@ -63,18 +64,33 @@ def _load_rows(json_path: Path) -> list[dict]:
 
 
 # Delete all rows from the target table.
-def _delete_all_rows(client) -> int:
-    response = client.table(TABLE_NAME).delete().neq("id", ALL_ROWS_SENTINEL).execute()
+def _delete_all_rows(client, table_name: str) -> int:
+    response = (
+        client.table(table_name).delete().neq("id", ALL_ROWS_SENTINEL).execute()
+    )
+    if response.data is None:
+        raise RuntimeError(f"Delete failed: {response}")
+    return len(response.data)
+
+
+# Delete only rows for the provided screening_date (YYYY-MM-DD).
+def _delete_rows_for_date(client, table_name: str, screening_date: str) -> int:
+    response = (
+        client.table(table_name)
+        .delete()
+        .eq("screening_date", screening_date)
+        .execute()
+    )
     if response.data is None:
         raise RuntimeError(f"Delete failed: {response}")
     return len(response.data)
 
 
 # Insert all rows into the target table.
-def _insert_rows(client, rows: list[dict]) -> int:
+def _insert_rows(client, table_name: str, rows: list[dict]) -> int:
     if not rows:
         return 0
-    response = client.table(TABLE_NAME).insert(rows).execute()
+    response = client.table(table_name).insert(rows).execute()
     if response.data is None:
         raise RuntimeError(f"Insert failed: {response}")
     return len(response.data)
@@ -93,16 +109,22 @@ def main() -> None:
     config = _load_config()
     client = create_client(config.url, config.key)
 
-    deleted = _delete_all_rows(client)
-    inserted = _insert_rows(client, rows)
+    deleted_mini = _delete_all_rows(client, TABLE_NAME_MINI)
+    inserted_mini = _insert_rows(client, TABLE_NAME_MINI, rows)
+
+    deleted_history = _delete_rows_for_date(client, TABLE_NAME_HISTORY, today_str)
+    inserted_history = _insert_rows(client, TABLE_NAME_HISTORY, rows)
 
     print(
         "Summary:",
         f"date={today_str}",
         f"input_rows={len(rows)}",
-        f"deleted={deleted}",
-        f"inserted={inserted}",
-        f"table={TABLE_NAME}",
+        f"deleted_mini={deleted_mini}",
+        f"inserted_mini={inserted_mini}",
+        f"table_mini={TABLE_NAME_MINI}",
+        f"deleted_history={deleted_history}",
+        f"inserted_history={inserted_history}",
+        f"table_history={TABLE_NAME_HISTORY}",
     )
 
 
