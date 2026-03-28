@@ -4,6 +4,7 @@ Orchestrate the Atreus E2E flow: scrape HTML -> parse JSON -> load database.
 """
 
 import at_loader
+import at_linker
 import at_parser
 import at_scraper
 
@@ -23,6 +24,9 @@ def main() -> None:
 
     # Step 3: load the JSON payload into Supabase.
     at_loader.main()
+
+    # Step 4: link titles to TMDB IDs.
+    at_linker.main()
 
 
 if __name__ == "__main__":
