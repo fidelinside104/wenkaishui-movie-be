@@ -7,6 +7,7 @@ import at_loader
 import at_linker
 import at_parser
 import at_scraper
+import at_composer
 
 # Define jobs here so the scraper can inherit them.
 JOBS = [
@@ -27,6 +28,9 @@ def main() -> None:
 
     # Step 4: link titles to TMDB IDs.
     at_linker.main()
+
+    # Step 5: compose the serving table.
+    at_composer.main()
 
 
 if __name__ == "__main__":
