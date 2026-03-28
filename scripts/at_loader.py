@@ -23,7 +23,8 @@ load_dotenv(override=False)
 
 TIMEZONE = ZoneInfo("Asia/Taipei")
 TABLE_NAME_MINI = "screenings_mini"
-TABLE_NAME_HISTORY = "screenings"
+TABLE_NAME_SCREENINGS = "screenings"
+TABLE_NAME_VERSIONS = "versions"
 ALL_ROWS_SENTINEL = "00000000-0000-0000-0000-000000000000"
 
 # Ensure required env vars exist.
@@ -96,6 +97,36 @@ def _insert_rows(client, table_name: str, rows: list[dict]) -> int:
     return len(response.data)
 
 
+# Extract unique, non-null movie_version strings from scraped rows.
+def _extract_versions(rows: list[dict]) -> list[dict]:
+    unique_versions = []
+    seen = set()
+    for row in rows:
+        version = row.get("movie_version")
+        if version is None:
+            continue
+        if version in seen:
+            continue
+        seen.add(version)
+        unique_versions.append({"version_zh": version})
+    return unique_versions
+
+
+# Upsert versions into the versions table by version_zh.
+def _upsert_versions(client, rows: list[dict]) -> int:
+    versions = _extract_versions(rows)
+    if not versions:
+        return 0
+    response = (
+        client.table(TABLE_NAME_VERSIONS)
+        .upsert(versions, on_conflict="version_zh", ignore_duplicates=True)
+        .execute()
+    )
+    if response.data is None:
+        raise RuntimeError(f"Upsert failed: {response}")
+    return len(response.data)
+
+
 # Orchestrate load for today's JSON file.
 def main() -> None:
     temp_dir = Path(__file__).resolve().parents[1] / "temp"
@@ -109,22 +140,18 @@ def main() -> None:
     config = _load_config()
     client = create_client(config.url, config.key)
 
-    deleted_mini = _delete_all_rows(client, TABLE_NAME_MINI)
-    inserted_mini = _insert_rows(client, TABLE_NAME_MINI, rows)
+    inserted_versions = _upsert_versions(client, rows)
 
-    deleted_history = _delete_rows_for_date(client, TABLE_NAME_HISTORY, today_str)
-    inserted_history = _insert_rows(client, TABLE_NAME_HISTORY, rows)
+    deleted_screenings = _delete_rows_for_date(client, TABLE_NAME_SCREENINGS, today_str)
+    inserted_screenings = _insert_rows(client, TABLE_NAME_SCREENINGS, rows)
 
     print(
         "Summary:",
         f"date={today_str}",
         f"input_rows={len(rows)}",
-        f"deleted_mini={deleted_mini}",
-        f"inserted_mini={inserted_mini}",
-        f"table_mini={TABLE_NAME_MINI}",
-        f"deleted_history={deleted_history}",
-        f"inserted_history={inserted_history}",
-        f"table_history={TABLE_NAME_HISTORY}",
+        f"inserted_versions={inserted_versions}",
+        f"deleted_screenings={deleted_screenings}",
+        f"inserted_screenings={inserted_screenings}",
     )
 
 
