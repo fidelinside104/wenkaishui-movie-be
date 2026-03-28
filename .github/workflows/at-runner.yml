@@ -28,4 +28,5 @@ jobs:
           HEADLESS: "1"
           SUPABASE_URL_MO: ${{ secrets.SUPABASE_URL_MO }}
           SUPABASE_SECRET_KEY_MO: ${{ secrets.SUPABASE_SECRET_KEY_MO }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: python scripts/at_runner.py
