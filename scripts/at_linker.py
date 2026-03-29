@@ -30,8 +30,9 @@ load_dotenv(override=False)
 TIMEZONE = ZoneInfo("Asia/Taipei")
 TABLE_NAME_TITLE_LINKS = "title_links"
 TABLE_NAME_MOVIES = "movies"
-TMDB_ENDPOINT = "https://api.themoviedb.org/3/search/movie"
+TMDB_SEARCH_ENDPOINT = "https://api.themoviedb.org/3/search/movie"
 TMDB_TRANSLATIONS_ENDPOINT = "https://api.themoviedb.org/3/movie/{movie_id}/translations"
+TMDB_MOVIE_ENDPOINT = "https://api.themoviedb.org/3/movie/{movie_id}"
 PAGE_SIZE = 1000
 PAUSE_EVERY = 25
 PAUSE_SECONDS = 1
@@ -147,7 +148,7 @@ def _fetch_existing_movie_ids(client) -> set[int]:
 # Call TMDB search endpoint and return the first result object (or None).
 def _tmdb_first_result(api_key: str, title: str) -> Optional[dict[str, Any]]:
     params = urlencode({"query": title, "api_key": api_key})
-    url = f"{TMDB_ENDPOINT}?{params}"
+    url = f"{TMDB_SEARCH_ENDPOINT}?{params}"
     with urlopen(url, timeout=10) as response:
         payload = json.load(response)
     results = payload.get("results") if isinstance(payload, dict) else None
@@ -218,6 +219,18 @@ def _tmdb_translations(api_key: str, movie_id: int) -> list[dict[str, Any]]:
     if not isinstance(translations, list):
         return []
     return [t for t in translations if isinstance(t, dict)]
+
+
+# Call TMDB movie endpoint and return movie data.
+def _tmdb_movie(api_key: str, movie_id: int) -> Optional[dict[str, Any]]:
+    params = urlencode({"api_key": api_key})
+    url = TMDB_MOVIE_ENDPOINT.format(movie_id=movie_id)
+    url = f"{url}?{params}"
+    with urlopen(url, timeout=10) as response:
+        payload = json.load(response)
+    if not isinstance(payload, dict):
+        return None
+    return payload
 
 
 # Pick translation data by iso_3166_1 code.
@@ -332,6 +345,44 @@ def main() -> None:
         if translation_calls % PAUSE_EVERY == 0:
             time.sleep(PAUSE_SECONDS)
 
+    # Fetch imdb_id and origin_country for newly inserted movies.
+    details_updated = 0
+    details_missing = 0
+    details_calls = 0
+    for movie in movies_rows:
+        movie_id = movie.get("id")
+        if not isinstance(movie_id, int):
+            continue
+        details = _tmdb_movie(api_key, movie_id)
+        if not details:
+            print(f"Warning: no details data for movie id {movie_id}")
+            details_missing += 1
+            continue
+        origin_country = details.get("origin_country")
+        if isinstance(origin_country, list):
+            origin_country_value = json.dumps(origin_country, ensure_ascii=False)
+        else:
+            origin_country_value = None
+        update_payload = {
+            "imdb_id": _clean_text(details.get("imdb_id")),
+            "origin_country": origin_country_value,
+        }
+        if all(value is None for value in update_payload.values()):
+            print(f"Warning: missing imdb_id/origin_country for movie id {movie_id}")
+            details_missing += 1
+        response = (
+            client.table(TABLE_NAME_MOVIES)
+            .update(update_payload)
+            .eq("id", movie_id)
+            .execute()
+        )
+        if response.data is None:
+            raise RuntimeError(f"Update failed for movie id {movie_id}: {response}")
+        details_updated += 1
+        details_calls += 1
+        if details_calls % PAUSE_EVERY == 0:
+            time.sleep(PAUSE_SECONDS)
+
     print(
         "Summary:",
         f"date={today_str}",
@@ -345,6 +396,8 @@ def main() -> None:
         f"movies_inserted={inserted_movies}",
         f"translations_updated={translations_updated}",
         f"translations_missing={translations_missing}",
+        f"details_updated={details_updated}",
+        f"details_missing={details_missing}",
     )
 
 

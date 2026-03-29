@@ -25,8 +25,10 @@ load_dotenv(override=False)
 
 # Manual list of TMDB ids to load.
 MOVIE_IDS = [
-     1536559,
+#    1359916,
 ]
+
+
 
 # Load mode: "safe" (skip existing) or "overwrite" (upsert).
 MODE = "safe"
@@ -118,11 +120,17 @@ def _movie_payload(result: dict[str, Any]) -> dict[str, Any]:
         genre_ids_value = json.dumps(genre_ids, ensure_ascii=False)
     else:
         genre_ids_value = None
+    origin_country = result.get("origin_country")
+    if isinstance(origin_country, list):
+        origin_country_value = json.dumps(origin_country, ensure_ascii=False)
+    else:
+        origin_country_value = None
     return {
         "adult": result.get("adult"),
         "backdrop_path": result.get("backdrop_path"),
         "genre_ids": genre_ids_value,
         "id": result.get("id"),
+        "imdb_id": result.get("imdb_id"),
         "original_language": result.get("original_language"),
         "original_title": result.get("original_title"),
         "overview_en": result.get("overview"),
@@ -132,6 +140,7 @@ def _movie_payload(result: dict[str, Any]) -> dict[str, Any]:
         "video": result.get("video"),
         "vote_average": result.get("vote_average"),
         "vote_count": result.get("vote_count"),
+        "origin_country": origin_country_value,
     }
 
 
