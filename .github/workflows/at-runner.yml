@@ -2,7 +2,7 @@ name: Atmovies E2E Runner
 
 on:
   schedule:
-    - cron: "30 16 * * *"
+    - cron: "5 16 * * *"
   workflow_dispatch:
 
 jobs:
