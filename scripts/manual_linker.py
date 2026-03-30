@@ -28,8 +28,6 @@ MOVIE_IDS = [
 #    1359916,
 ]
 
-
-
 # Load mode: "safe" (skip existing) or "overwrite" (upsert).
 MODE = "safe"
 
